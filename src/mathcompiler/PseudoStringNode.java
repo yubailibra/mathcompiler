@@ -7,8 +7,7 @@ package mathcompiler;
 
 public class PseudoStringNode {
 	/**
-	[PseudoStringNode encapsulates a pseudoString object and a pointer. It is used as elements for linked-list
-	[]
+	[PseudoStringNode encapsulates a PseudoString object and a pointer that links to another PseudoString object. 
 	@see [myString]
    	@see [next]
    */

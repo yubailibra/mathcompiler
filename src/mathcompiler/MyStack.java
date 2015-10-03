@@ -13,10 +13,12 @@ public class MyStack {
    	@see [top]
    	@see [MyStack#push]
    	@see [MyStack#pop]
+   	@see [MyStack#popAll]
    	@see [MyStack#peek]
    	@see [MyStack#empty]
    	@see [MyStack#getSize]
 	**/
+
 	private PseudoStringNode top;
 	private int size;
 	public MyStack(){

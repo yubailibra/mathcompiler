@@ -18,11 +18,11 @@ public class ArithmeticCompiler{ //throws IOException??
 	[The master engine for compiling arithmetic expressions into assembly language instructions. 
 	It handles postfix, prefix and infix expressions, with the ability to automatically detect the
 	type of the input expressions.]
-	[Usage: java -jar XXX]
 	@see [stk]
 	@see [instructions]
 	@see [counterTmpVar]
-	@see [whatType]
+	@see [orgType]
+	@see [expression]
     @see [ArithmeticCompiler#run]
     @see [ArithmeticCompiler#reset]
     @see [ArithmeticCompiler#expressionToInstructions]
@@ -30,10 +30,12 @@ public class ArithmeticCompiler{ //throws IOException??
     @see [ArithmeticCompiler#getInstructions]
     @see [ArithmeticCompiler#readExpression]
  	**/
+
 	private MyStack stk;
 	private MyQueue instructions;
 	private int counterTmpVar;
-	private int orgType=MyUtils.INVALID;	//type of the original expression (prefix, postfix, infix or invalid)
+	private int myType=MyUtils.INCORRECT;	//type of the original expression (prefix, postfix, infix or invalid)
+	private PseudoString myExpression=null;	
 
 	public ArithmeticCompiler(){
 		stk=new MyStack();
@@ -50,36 +52,44 @@ public class ArithmeticCompiler{ //throws IOException??
 		instructions.removeAll();
 		counterTmpVar=0;	
 	}
+	
 	/**
-	 * convert an expression string to instruction lists (stored by a MyQueue data structure).
+	 * convert an expression string to a list of instructions. It validates the expression and handles errors at the same time. 
 	 * The input operands are assumed to be single-letter.
+	 @param expression
+	 @return validation code of the expression
 	 */
-	public void expressionToInstructions(PseudoString expression){
+	public int expressionToInstructions(PseudoString expression){
 		int exprlength=expression.getLength();
 		int idx=-1, myincreament=1;
 		int whattype=MyUtils.findExpressionType(expression);
-		orgType=whattype;
+		myType=whattype;
+		if(whattype==MyUtils.INCORRECT){	
+			System.out.println("WARNING: incorrect expression, no instruction is generated.");
+			return MyUtils.INCORRECT_EXPRESSION;
+		}
 		if(whattype==MyUtils.INFIX){
 			whattype=MyUtils.POSTFIX;
 			expression=MyUtils.infix2Postfix(expression);
 			if(expression==null){
 				System.out.println("WARNING: the infix expression cannot be converted to a valid postfix one.");
-				whattype=MyUtils.INVALID;
+				whattype=MyUtils.INCORRECT;
+				return MyUtils.BAD_INFIX;
 			}
 		}
 		if(whattype==MyUtils.PREFIX){
 			idx=exprlength;
 			myincreament=-1;
 		}
-		if(whattype==MyUtils.INVALID){	
-			System.out.println("WARNING: invalid expression, no instruction is generated.");
-			return;
-		}
+		myExpression=expression;		  
 		if(expression.getLength()==1){	//expression is a single-letter operand 
 			System.out.println("WARNING: single-operand expression, no instruction is needed.");
 			instructions.add(expression);
-			return;
+			return MyUtils.SINGLE_OPERAND;
 		}
+		
+		//Note below while loop terminates before the final temporary variable operand is pushed back to the stack, 
+		//Thus, a final empty stack means a valid expression that is successfully evaluated, not the other way around.
 		while (expression.hasNext(idx, whattype)){
 			idx=idx+myincreament;
 			char currentChar=expression.getCharAt(idx);
@@ -91,14 +101,14 @@ public class ArithmeticCompiler{ //throws IOException??
 				}else{
 					System.out.println("WARNING: invalid expression due to lack of operand(s).");
 					reset();
-					break;		//leave instructions empty for invalid expression
+					return MyUtils.MISSING_OPERAND;		
 				}
 				if(!stk.empty()){
 					opn2=stk.pop();
 				}else{
 					System.out.println("WARNING: invalid expression due to lack of operand(s).");
 					reset();
-					break;		//leave instructions empty for invalid expression
+					return MyUtils.MISSING_OPERAND;		
 				}
 				//swap operands as in postfix expression the second popped operand is the left operand 
 				if(whattype==MyUtils.POSTFIX){
@@ -121,14 +131,23 @@ public class ArithmeticCompiler{ //throws IOException??
 				}else{
 					//System.out.println("WARNING: invalid operator or operand.");
 					reset();
-					break;
+					if(currentChar!='_' && (currentChar <'0' || (currentChar>'9' && currentChar<'A') || (currentChar>'Z' && currentChar<'a') || currentChar>'z') ){
+						System.out.println("WARNING: invalid operator. Only +,-,*,/ are allowed.");
+						return MyUtils.BAD_OPERATOR;
+					}else{
+						System.out.println("WARNING: invalid operand.");
+						return MyUtils.BAD_OPERAND;
+					}
+
 				}
 			}//end else
 		}//end while
 		if(!stk.empty()){
 			reset();
 			System.out.println("WARNING: invalid expression due to lack of operator(s).");
+			return MyUtils.MISSING_OPERATOR;
 		}
+		return MyUtils.VALID;
 	}
 	
 	/**
@@ -136,9 +155,10 @@ public class ArithmeticCompiler{ //throws IOException??
 	 * That is,load the first operand, perform arithmetic operation with the 2nd operand, store the result to a new temporary variable.
 	 * Operands are of PseudoString type such that their names can have either single or multiple characters.
 	 * The operator is a char type variable.
-	 * @param opn1: 
+	 * @param opn1
 	 * @param opn2
 	 * @param opt
+	 * @return newTmpVar
 	 */
 	public PseudoString compile(PseudoString opn1, PseudoString opn2, char opt){
 		//load the 1st operand to the register.
@@ -184,6 +204,9 @@ public class ArithmeticCompiler{ //throws IOException??
 	
 	/**
 	 * I/O: read expressions from the input file, bulk process, and write the corresponding instructions to the output file.  
+	 @param infilename
+	 @param outfilename
+	 @return none
 	 */
 	public void run(String infilename, String outfilename) throws IOException{
 		try{
@@ -198,32 +221,54 @@ public class ArithmeticCompiler{ //throws IOException??
 			FileWriter fwriter=new FileWriter(outfilename);
 			BufferedWriter bwriter=new BufferedWriter(fwriter);
 
+			bwriter.write("#######################################################\n");
+			bwriter.write("# Results for input file "+infilename+" (Yu Bai) \n");
+			bwriter.write("#######################################################\n\n");
 			String expression;
-	//		int linecount=0;
-			String typeString="INVALID";
 			while ((expression=breader.readLine())!=null){
 				expression=expression.trim(); 	//remove flanking white spaces if any
 				if(expression.length()>=1){ 	//skip blank lines
 					System.out.println("... Start processing an expression "+expression+" ...");
 					char[] expchars=readExpression(expression);
-					expressionToInstructions(new PseudoString(expchars));
-
+					int errcode=expressionToInstructions(new PseudoString(expchars));
+					String errmsg;
+					switch(errcode){
+					case MyUtils.BAD_OPERAND:
+						errmsg="expression "+expression+" contains invalid operand(s). no instruction is generated.\n";
+						break;
+					case MyUtils.BAD_OPERATOR:
+						errmsg="expression "+expression+" contains invalid operator(s). no instruction is generated.\n";
+						break;
+					case MyUtils.BAD_INFIX:
+						errmsg="expression "+expression+" is invalid, cannot be converted to a postfix. no instruction is generated.\n";
+						break;
+					case MyUtils.INCORRECT_EXPRESSION:
+						errmsg="expression "+expression+" is invalid. it is not any of the pre-, post- or in-fix type. no instruction is generated.\n";
+						break;
+					case MyUtils.MISSING_OPERAND:
+						errmsg="expression "+expression+" is invalid due to missing operand(s). no instruction is generated.\n";
+						break;
+					case MyUtils.MISSING_OPERATOR:
+						errmsg="expression "+expression+" is invalid due to missing operator(s). no instruction is generated.\n";
+						break;
+					case MyUtils.SINGLE_OPERAND:
+						errmsg="expression "+expression+" is single-operand. no evaluation instruction is needed.\n";
+						break;
+					default:
+						errmsg="";
+					}	
 					String result;
 					bwriter.write(expression+"\n");
-					if(instructions.getSize()<1){
-						result="expression "+expression+" is invalid. no instruction is generated.\n";
-						bwriter.write(result);
-					}else if(instructions.getSize()==1){
-						result="expression "+expression+" is single-operand. no instruction is needed.\n";
-						bwriter.write(result);
+					if(instructions.getSize()<=1){
+						bwriter.write(errmsg);
 					}else{
 						System.out.println("Succeed! "+expression+" is complied into assembly language instructions.");
-						if(orgType==MyUtils.PREFIX){
+						if(myType==MyUtils.PREFIX){
 							result="PREFIX expression "+expression+" is valid. Evaluation instructions are as follows:\n";
-						}else if (orgType==MyUtils.POSTFIX){
+						}else if (myType==MyUtils.POSTFIX){
 							result="POSTFIX expression "+expression+" is valid. Evaluation instructions are as follows:\n";
 						}else{
-							result="INFIX expression "+expression+" is valid. Evaluation instructions of its POSTFIX equivalent are as follows:\n";
+							result="INFIX expression "+expression+" is valid with POSTFIX equivalent "+ String.valueOf(myExpression.getChars())+". Evaluation instructions are as follows:\n";
 						}
 						bwriter.write(result);
 						int instructionSize=instructions.getSize();
@@ -243,8 +288,7 @@ public class ArithmeticCompiler{ //throws IOException??
 			e.printStackTrace();
 		}
 
-	}
-	
+	}	
 
 	
 	/**
@@ -261,72 +305,6 @@ public class ArithmeticCompiler{ //throws IOException??
 		return expchars;
 	}
 
-	/**
-	 * I/O: read in all expression lines from an input file and output them in a String array.
-	 * @param infile
-	 * @return inputs
-	 */
-	/*public String[] readFile(String infile) throws IOException{
-		int numLines=countLines(infile);
-		String[] expressions=new String[numLines];
-
-		FileReader fr=new FileReader(infile);
-		BufferedReader breader=new BufferedReader(fr);
-		
-		for(int i=0;i<numLines;i++){
-			expressions[i]=breader.readLine();
-		}
-		return expressions;
-	}
-	*/
-
-	/**
-	 * I/O: read through the input file and output the number of lines therein
-	 * @param infile
-	 * @return linecount
-	 */
-/*	public int countLines(String infile) throws IOException{
-		FileReader fr=new FileReader(infile);
-		BufferedReader breader=new BufferedReader(fr);
-		
-		String line;
-		int linecount=0;
-		while ((line=breader.readLine())!=null){
-			linecount++;
-		}
-		breader.close();
-		return linecount;
-	}
-
-	public void writeFile(String outfile) throws IOException{
-		try{
-			File output=new File(outfile);
-			if (!output.exists()) {
-				output.createNewFile();
-			}
-
-		
-		}catch(IOException e){
-			e.printStackTrace();
-		}
-	}
-	
-	public String[] writeExpression(String expression) {
-			String[] resultsPerExpression;
-			
-			if(instructions.getSize()<1){
-				resultsPerExpression=new String[1];
-				resultsPerExpression[0]="ERROR: Invalid expression. no instruction is generated.";
-			}else{
-				resultsPerExpression=new String[instructions.getSize()];
-				for(int i=0;i<resultsPerExpression.length;i++){
-					resultsPerExpression[i]=String.valueOf(instructions.remove().getChars());
-				}
-			}
-			return resultsPerExpression;
-	}
-	
-*/
 
 	public static void main(String[] args) throws IOException{
 		String infile=args[0];

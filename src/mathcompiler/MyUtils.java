@@ -7,23 +7,37 @@ package mathcompiler;
 
 public class MyUtils {
 	/**
-	[This class provides a collection of useful static methods for manipulation of MyUtils instances,
-	conversion among different types of expressions.]
+	[This class provides a collection of useful static methods for manipulation of PseudoString instances,
+	and conversions among different types of expressions etc.]
    	@see [MyUtils#findExpressionType]
     @see [MyUtils#infix2Postfix]
+    @see [MyUtils#checkPrecedence]
    	@see [MyUtils#cloneChars]
     @see [MyUtils#int2Chars]
     @see [MyUtils#digit2Char]
-    @see [MyUtils#isOperator]
-    @see [MyUtils#isValidOperand]
     @see [MyUtils#cloneChars]
 	@see [MyUtils#int2Char]
+    @see [MyUtils#isValidOperator]
+    @see [MyUtils#isValidOperand]
+    @see [MyUtils#isOperand]
 	**/
+
+	/**definition of expression types**/
 	public static final int POSTFIX=1;
 	public static final int PREFIX=2;
 	public static final int INFIX=3;
-	public static final int INVALID=-1;
+	public static final int INCORRECT=-1;	//an incorrect expression that doesn't belong to any expression type even before the evaluation
 
+	/**definition of validation codes for expressions**/
+	public static final int VALID=0;
+	public static final int BAD_OPERAND=1;	
+	public static final int BAD_OPERATOR=2;
+	public static final int BAD_INFIX=3;	
+	public static final int INCORRECT_EXPRESSION=4;	
+	public static final int MISSING_OPERAND=5;
+	public static final int MISSING_OPERATOR=6;
+	public static final int SINGLE_OPERAND=7;
+	
 	
 	/**
 	 * identity the expression type as one of the POSTFIX, PREFIX or INFIX
@@ -32,18 +46,18 @@ public class MyUtils {
 	public static int findExpressionType(PseudoString expression){
 		if(expression.getLength()<1){
 			System.out.println("WARNING: empty expression. no type can be identified");
-			return INVALID;
+			return INCORRECT;
 		}
 		char first=expression.getCharAt(0);
 		char last=expression.getCharAt(expression.getLength()-1);
-		if(isValidOperator(first) && isValidOperand(new PseudoString(last))){
+		if(!isOperand(new PseudoString(first)) && isOperand(new PseudoString(last))){
 			return PREFIX;
-		}else if(isValidOperand(new PseudoString(first)) && isValidOperator(last)){
+		}else if(isOperand(new PseudoString(first)) && !isOperand(new PseudoString(last))){
 			return POSTFIX;
-		}else if((isValidOperand(new PseudoString(first)) || first=='(') && (isValidOperand(new PseudoString(last))||last==')')){
+		}else if((isOperand(new PseudoString(first)) || first=='(') && (isOperand(new PseudoString(last))||last==')')){
 			return INFIX;
-		}else{
-			return INVALID;
+		}else{		//the expression is simply wrong as it cannot be identified as any of the pre-, post- or infix type
+			return INCORRECT;
 		}
 	}
 
@@ -65,7 +79,6 @@ public class MyUtils {
 		//read in infix string from left to right
 		for(posIn=0;posIn<infix.getLength();posIn++){
 			inChar = infix.getCharAt(posIn);		 
-			
 			if(isValidOperand(new PseudoString(inChar))){ //if the character is an operand, save it to poststr starting from the lowest index 
 				poststr[posOut++]=inChar;
 			}else if(isValidOperator(inChar)){				//if inChar is operator, compare it with the top element in opstk if any
@@ -74,12 +87,11 @@ public class MyUtils {
 					topChar = opstk.pop().getCharAt(0);	//only the 1st letter is needed assuming single-letter operand
 					if (topChar==')'){
 						System.out.println("WARNING: ) is an invalid operator to occur in the operator stack.");
-						return new PseudoString(new char[0]);
+						return null;
 					}
 				}else{
 					wasEmpty=true;
 				}
-
 				//As long as opstk is not empty and inChar has a lower precedence than the top element in opstk (aka topChar), 
 				//output topChar to the poststr array and repeat on the next element in opstk. 
 				//Note opstk must pop to present topChar for precedence comparison, 
@@ -188,6 +200,7 @@ public class MyUtils {
 		}
 		return results;
 	}
+
 	/**
 	 *handy function to convert 0-9 digit to "0"-"9" characters
 	 */
@@ -211,15 +224,17 @@ public class MyUtils {
 		case ')': return true;
 		case '(': return true;
 		default:  	//return false when either the operator is invalid or it's an operand
-			if(c!='_' && (c<'A' || (c>'Z' && c<'a')||c>'z') ){
-				System.out.println("WARNING: invalid operator. Only +,-,*,/ are allowed.");
-			}
+			//if(c!='_' && (c <'0' || (c>'9' && c<'A') || (c>'Z' && c<'a') || c>'z') ){
+			//	System.out.println("WARNING: invalid operator. Only +,-,*,/ are allowed.");
+			//}
 			return false;
 		}
 	}
+
 	/**
 	 * According to java variable naming rule, operands must start with Alphabet or underscore, followed by 
-	 * any number of letters, digits or underscore. We exclude dollar sign because we treat it as an exponentiation in this class
+	 * any number of letters, digits or underscore. 
+	 * We exclude dollar sign because we treat it as an exponentiation in this course
 	 * @param opn
 	 * @return true or false
 	 */
@@ -242,4 +257,22 @@ public class MyUtils {
 		return true;
 	}
 
+	/**
+	 * test if the input is composed of letters, digits or underscore. 
+	 * We exclude dollar sign because we treat it as an exponentiation in this course.
+	 * @param opn
+	 * @return true or false
+	 */
+	public static boolean isOperand(PseudoString opn){
+		if(opn.getLength()<1){return false;}
+		char letter;
+		for(int i=0;i<opn.getLength();i++){
+			letter=opn.getCharAt(i);
+			if( letter!='_' && (letter <'0' || (letter>'9' && letter<'A') || (letter>'Z' && letter<'a') || letter>'z')){
+		//		System.out.println("WARNING: "+letter+" is invalid in an operand.");
+				return false;
+			}
+		}
+		return true;
+	}
 }

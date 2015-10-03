@@ -13,12 +13,13 @@ public class PseudoString {
 	@see [inChars]
    	@see [PseudoString#setChars]
     @see [PseudoString#getChars]
+    @see [PseudoString#getCharAt]
     @see [PseudoString#getLength]
     @see [PseudoString#subChars]
     @see [PseudoString#concatChars]
+    @see [PseudoString#hasNext]
 	**/
 	
-	//field declaration
 	private char[] myChars; //an array containing all characters that compose of a string
 	
 	//constructor: 
@@ -100,6 +101,12 @@ public class PseudoString {
 		myChars=catChars;
 	}
 
+	/**
+	 * test if the array myChars has a next, valid element with respect to the given index.
+	 * @param index
+	 * @param type
+	 * @return true or false
+	 */
 	public boolean hasNext(int index,int type){
 		if(type==MyUtils.POSTFIX){
 			if(index>=-1 && index<myChars.length-1 && myChars.length>0){

@@ -14,6 +14,7 @@ public class MyQueue {
    	@see [rear]
    	@see [MyQueue#add]
    	@see [MyQueue#remove]
+   	@see [MyQueue#removeAll]
    	@see [MyQueue#peek]
    	@see [MyQueue#empty]
    	@see [MyQueue#getSize]
@@ -68,14 +69,14 @@ public class MyQueue {
 		size--;
 		return item;
 	}
+	
 	/**
 	 * clean up all elements
 	 */
 	public void removeAll(){
+		PseudoStringNode temp;
 		while(!empty()){
-			PseudoString item;
-			PseudoStringNode temp=first;
-			item=temp.myString;
+			temp=first;
 			first=temp.next;
 			if(first==null){ //if the last element was removed, update the rear pointer as well)
 				rear=null;
